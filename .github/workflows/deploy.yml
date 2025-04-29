@@ -16,6 +16,10 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
+      - name: Build JAR using Maven
+        working-directory: ./SkillBridge/backend/skillbridge
+        run: mvn clean package -DskipTests
+
       - name: Build and Push Backend
         working-directory: ./SkillBridge/backend/skillbridge
         run: |
