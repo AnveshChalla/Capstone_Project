@@ -27,7 +27,7 @@ jobs:
       # Step 2: Install and Build Frontend
       - name: Install and Build Frontend
         run: |
-          cd frontend
+          cd SkillBridge/frontend
           npm install
           CI='' npm run build
 
