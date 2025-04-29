@@ -1,0 +1,90 @@
+# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
+# More GitHub Actions for Azure: https://github.com/Azure/actions
+
+name: Build and deploy FULLSTACK app to Azure Web App - skillbridge-mongodb-serverless
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Step 1: Setup Node.js to build frontend
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'  # React uses Node.js 18 or 20 (safe with 18)
+
+      # Step 2: Install and Build Frontend
+      - name: Install and Build Frontend
+        run: |
+          cd frontend
+          npm install
+          CI='' npm run build
+
+      # Step 3: Copy Frontend Build Output to Spring Boot Static Resources
+      - name: Copy Frontend Build to Backend Static Folder
+        run: |
+          mkdir -p backend/skillbridge/src/main/resources/static
+          rm -rf backend/skillbridge/src/main/resources/static/*
+          cp -r frontend/build/* backend/skillbridge/src/main/resources/static/
+
+      # Step 4: Set up Java to build backend
+      - name: Set up Java version
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'microsoft'
+
+      # Step 5: Build Backend (Spring Boot) JAR
+      - name: Build Backend with Maven (skip tests)
+        run: |
+          cd backend/skillbridge
+          mvn clean package -DskipTests
+
+      # Step 6: Upload JAR as an artifact for deploy job
+      - name: Upload artifact for deployment job
+        uses: actions/upload-artifact@v4
+        with:
+          name: java-app
+          path: '${{ github.workspace }}/backend/skillbridge/target/*.jar'
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    environment:
+      name: 'Production'
+      url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Download artifact from build job
+        uses: actions/download-artifact@v4
+        with:
+          name: java-app
+      
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_0E981E0AA76047298298D5EAD6DF82EB }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_2F288CB649EF445BADA3A419EEB9A710 }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_BC00A39D8B3F48C1BD7ED5C29AC28002 }}
+
+      - name: Deploy to Azure Web App
+        id: deploy-to-webapp
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: 'skillbridge-mongodb-serverless'
+          slot-name: 'Production'
+          package: '*.jar'
